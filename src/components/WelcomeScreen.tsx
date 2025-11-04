@@ -36,8 +36,12 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onOpenSettings }) 
                 <span className="text-white/90">Ctrl+L / Cmd+L</span>
               </li>
               <li className="flex justify-between text-sm">
-                <span className="text-white/70">Process Screenshots</span>
+                <span className="text-white/70">Process Coding Question</span>
                 <span className="text-white/90">Ctrl+Enter / Cmd+Enter</span>
+              </li>
+              <li className="flex justify-between text-sm">
+                <span className="text-white/70">Process MCQ</span>
+                <span className="text-white/90">Ctrl+M+Enter / Cmd+M+Enter</span>
               </li>
               <li className="flex justify-between text-sm">
                 <span className="text-white/70">Reset View</span>

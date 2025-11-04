@@ -56,6 +56,11 @@ export class ShortcutsHelper {
       await this.deps.processingHelper?.processScreenshots()
     })
 
+    // MCQ processing shortcut: Cmd/Ctrl + M + Enter
+    globalShortcut.register("CommandOrControl+M+Enter", async () => {
+      await this.deps.processingHelper?.processScreenshotsMcq?.()
+    })
+
     globalShortcut.register("CommandOrControl+R", () => {
       console.log(
         "Command + R pressed. Canceling requests and resetting queues..."

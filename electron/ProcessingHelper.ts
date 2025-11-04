@@ -438,6 +438,198 @@ export class ProcessingHelper {
     }
   }
 
+  public async processScreenshotsMcq(): Promise<void> {
+    const mainWindow = this.deps.getMainWindow()
+    if (!mainWindow) return
+
+    const config = configHelper.loadConfig();
+
+    // Ensure provider client/key is initialized
+    if (config.apiProvider === "openai" && !this.openaiClient) {
+      this.initializeAIClient();
+      if (!this.openaiClient) {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID)
+        return
+      }
+    } else if (config.apiProvider === "gemini" && !this.geminiApiKey) {
+      this.initializeAIClient();
+      if (!this.geminiApiKey) {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID)
+        return
+      }
+    } else if (config.apiProvider === "anthropic" && !this.anthropicClient) {
+      this.initializeAIClient();
+      if (!this.anthropicClient) {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID)
+        return
+      }
+    }
+
+    const screenshotQueue = this.screenshotHelper.getScreenshotQueue()
+    if (!screenshotQueue || screenshotQueue.length === 0) {
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+      return
+    }
+
+    const existingScreenshots = screenshotQueue.filter(p => fs.existsSync(p))
+    if (existingScreenshots.length === 0) {
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.NO_SCREENSHOTS)
+      return
+    }
+
+    // Initialize AbortController
+    this.currentProcessingAbortController = new AbortController()
+    const { signal } = this.currentProcessingAbortController
+
+    try {
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.INITIAL_START)
+      mainWindow.webContents.send("processing-status", { message: "Analyzing MCQ from screenshots...", progress: 20 })
+
+      const screenshots = await Promise.all(
+        existingScreenshots.map(async (path) => {
+          try {
+            return {
+              path,
+              preview: await this.screenshotHelper.getImagePreview(path),
+              data: fs.readFileSync(path).toString('base64')
+            }
+          } catch (err) {
+            console.error(`Error reading screenshot ${path}:`, err)
+            return null
+          }
+        })
+      )
+
+      const validScreenshots = screenshots.filter(Boolean) as Array<{ path: string; data: string }>
+      if (validScreenshots.length === 0) throw new Error("Failed to load screenshot data")
+
+      const result = await this.generateMcqAnswerHelper(validScreenshots, signal)
+      if (!result.success) {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR, result.error)
+        this.deps.setView("queue")
+        return
+      }
+
+      mainWindow.webContents.send("processing-status", { message: "MCQ answer generated", progress: 100 })
+      mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.SOLUTION_SUCCESS, result.data)
+      this.deps.setView("solutions")
+    } catch (error: any) {
+      if (axios.isCancel(error)) {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR, "Processing was canceled by the user.")
+      } else {
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR, error.message || "Server error. Please try again.")
+      }
+      this.deps.setView("queue")
+    } finally {
+      this.currentProcessingAbortController = null
+    }
+  }
+
+  private async generateMcqAnswerHelper(
+    screenshots: Array<{ path: string; data: string }>,
+    signal: AbortSignal
+  ) {
+    try {
+      const config = configHelper.loadConfig();
+      const mainWindow = this.deps.getMainWindow();
+
+      const imageDataList = screenshots.map(s => s.data)
+
+      if (mainWindow) {
+        mainWindow.webContents.send("processing-status", { message: "Reading question and options...", progress: 40 })
+      }
+
+      let answersLetters: string[] = [];
+      let answersTexts: string[] = [];
+      let explanation = "";
+
+      if (config.apiProvider === "openai") {
+        if (!this.openaiClient) return { success: false, error: "OpenAI API key not configured. Please check your settings." }
+
+        const messages = [
+          { role: "system" as const, content: "You are an expert test solver. Determine the correct option(s) for the MCQ from screenshots. Return STRICT JSON only." },
+          { role: "user" as const, content: [
+            { type: "text" as const, text: "Read the MCQ from the images. Select the correct option(s). There can be one or multiple correct answers. Return STRICT JSON only with this schema: {\"answers_letters\": string[], \"answers_texts\": string[], \"explanation\": string}. Use letters like A, B, C, ... in order. Do not include any extra text or code fences." },
+            ...imageDataList.map(data => ({ type: "image_url" as const, image_url: { url: `data:image/png;base64,${data}` } }))
+          ]}
+        ]
+
+        const response = await this.openaiClient.chat.completions.create({
+          model: config.solutionModel || (config.apiProvider === "openai" ? "gpt-5" : "gemini-2.5-flash"),
+          messages
+        })
+
+        const raw = response.choices[0].message.content || "{}"
+        const jsonText = raw.replace(/```json|```/g, '').trim()
+        const parsed = JSON.parse(jsonText)
+        answersLetters = Array.isArray(parsed.answers_letters) ? parsed.answers_letters : [];
+        answersTexts = Array.isArray(parsed.answers_texts) ? parsed.answers_texts : [];
+        explanation = parsed.explanation || "";
+      } else if (config.apiProvider === "gemini") {
+        if (!this.geminiApiKey) return { success: false, error: "Gemini API key not configured. Please check your settings." }
+
+        const geminiMessages = [
+          { role: "user", parts: [
+            { text: "Read the MCQ from these images and select the correct option(s). There can be one or multiple correct answers. Return STRICT JSON only with this schema: {\"answers_letters\": string[], \"answers_texts\": string[], \"explanation\": string}." },
+            ...imageDataList.map(data => ({ inlineData: { mimeType: "image/png", data } }))
+          ]}
+        ]
+
+        const response = await axios.default.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || "gemini-2.5-flash"}:generateContent?key=${this.geminiApiKey}`,
+          { contents: geminiMessages, generationConfig: { maxOutputTokens: 4000 } },
+          { signal }
+        )
+
+        const responseData = response.data as GeminiResponse
+        const raw = responseData.candidates?.[0]?.content?.parts?.[0]?.text || "{}"
+        const jsonText = raw.replace(/```json|```/g, '').trim()
+        const parsed = JSON.parse(jsonText)
+        answersLetters = Array.isArray(parsed.answers_letters) ? parsed.answers_letters : [];
+        answersTexts = Array.isArray(parsed.answers_texts) ? parsed.answers_texts : [];
+        explanation = parsed.explanation || "";
+      } else if (config.apiProvider === "anthropic") {
+        if (!this.anthropicClient) return { success: false, error: "Anthropic API key not configured. Please check your settings." }
+
+        const messages = [
+          { role: "user" as const, content: [
+            { type: "text" as const, text: "Read the MCQ from these images and select the correct option(s). There can be one or multiple correct answers. Return STRICT JSON only with this schema: {\"answers_letters\": string[], \"answers_texts\": string[], \"explanation\": string}." },
+            ...imageDataList.map(data => ({ type: "image" as const, source: { type: "base64" as const, media_type: "image/png" as const, data } }))
+          ]}
+        ]
+
+        const response = await this.anthropicClient.messages.create({
+          model: config.solutionModel || "claude-3-7-sonnet-20250219",
+          max_tokens: 4000,
+          messages,
+          temperature: 0.2
+        })
+
+        const raw = (response.content[0] as { type: 'text', text: string }).text || "{}"
+        const jsonText = raw.replace(/```json|```/g, '').trim()
+        const parsed = JSON.parse(jsonText)
+        answersLetters = Array.isArray(parsed.answers_letters) ? parsed.answers_letters : [];
+        answersTexts = Array.isArray(parsed.answers_texts) ? parsed.answers_texts : [];
+        explanation = parsed.explanation || "";
+      }
+
+      const answersJoined = answersLetters.join(', ');
+      const textsJoined = answersTexts.filter(Boolean).join('; ');
+      const formatted = {
+        code: `Answer${answersLetters.length > 1 ? 's' : ''}: ${answersJoined}${textsJoined ? ` - ${textsJoined}` : ''}\n\nExplanation: ${explanation}`.trim(),
+        thoughts: explanation ? [explanation] : ["Selected the correct option(s) based on the question and choices shown."],
+        time_complexity: "N/A",
+        space_complexity: "N/A"
+      }
+
+      return { success: true, data: formatted }
+    } catch (error: any) {
+      if (axios.isCancel(error)) return { success: false, error: "Processing was canceled by the user." }
+      console.error("MCQ generation error:", error)
+      return { success: false, error: error.message || "Failed to generate MCQ answer" }
+    }
+  }
+
   private async processScreenshotsHelper(
     screenshots: Array<{ path: string; data: string }>,
     signal: AbortSignal
@@ -496,10 +688,8 @@ export class ProcessingHelper {
 
         // Send to OpenAI Vision API
         const extractionResponse = await this.openaiClient.chat.completions.create({
-          model: config.extractionModel || "gpt-4o",
-          messages: messages,
-          max_tokens: 4000,
-          temperature: 0.2
+          model: config.extractionModel || (config.apiProvider === "openai" ? "gpt-5" : "gemini-2.5-flash"),
+          messages: messages
         });
 
         // Parse the response
@@ -545,7 +735,7 @@ export class ProcessingHelper {
 
           // Make API request to Gemini
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.extractionModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.extractionModel || "gemini-2.5-flash"}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {
@@ -775,13 +965,12 @@ Your solution should be efficient, well-commented, and handle edge cases.
         
         // Send to OpenAI API
         const solutionResponse = await this.openaiClient.chat.completions.create({
-          model: config.solutionModel || "gpt-4o",
+          model: config.solutionModel || (config.apiProvider === "openai" ? "gpt-5" : "gemini-2.5-flash"),
           messages: [
             { role: "system", content: "You are an expert coding interview assistant. Provide clear, optimal solutions with detailed explanations." },
             { role: "user", content: promptText }
           ],
-          max_tokens: 4000,
-          temperature: 0.2
+          
         });
 
         responseContent = solutionResponse.choices[0].message.content;
@@ -809,7 +998,7 @@ Your solution should be efficient, well-commented, and handle edge cases.
 
           // Make API request to Gemini
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.solutionModel || "gemini-2.5-flash"}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {
@@ -1067,10 +1256,8 @@ If you include code examples, use proper markdown code blocks with language spec
         }
 
         const debugResponse = await this.openaiClient.chat.completions.create({
-          model: config.debuggingModel || "gpt-4o",
-          messages: messages,
-          max_tokens: 4000,
-          temperature: 0.2
+          model: config.debuggingModel || (config.apiProvider === "openai" ? "gpt-5" : "gemini-2.5-flash"),
+          messages: messages
         });
         
         debugContent = debugResponse.choices[0].message.content;
@@ -1130,7 +1317,7 @@ If you include code examples, use proper markdown code blocks with language spec
           }
 
           const response = await axios.default.post(
-            `https://generativelanguage.googleapis.com/v1beta/models/${config.debuggingModel || "gemini-2.0-flash"}:generateContent?key=${this.geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${config.debuggingModel || "gemini-2.5-flash"}:generateContent?key=${this.geminiApiKey}`,
             {
               contents: geminiMessages,
               generationConfig: {

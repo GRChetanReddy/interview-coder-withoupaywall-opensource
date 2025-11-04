@@ -25,6 +25,38 @@
 >
 > The configuration file is stored at: `C:\Users\[USERNAME]\AppData\Roaming\interview-coder-v1\config.json` (on Windows) or `/Users/[USERNAME]/Library/Application Support/interview-coder-v1/config.json` (on macOS)
 
+## 🔧 Troubleshooting API Errors
+
+If you're experiencing API errors from OpenAI, Gemini, or Claude after updating your API keys, the issue is likely due to old configuration files being cached. The app now automatically detects and clears invalid configuration files on startup, but you can also manually clear them:
+
+### Automatic Solution
+The app now automatically:
+- Validates stored configuration files on startup
+- Clears any invalid or outdated configuration files
+- Resets to default settings when needed
+
+### Manual Solution
+If you're still experiencing issues, you can manually clear all configuration files:
+
+1. **Using the Settings Dialog** (Recommended):
+   - Open the app and go to Settings
+   - Click "Clear All Config Files" in the Troubleshooting section
+   - Restart the app
+
+2. **Using the Command Line**:
+   ```bash
+   npm run clear-config
+   ```
+   or
+   ```bash
+   node clear-config.js
+   ```
+
+3. **Manual File Deletion**:
+   - **Windows**: Delete `C:\Users\[USERNAME]\AppData\Roaming\Electron\config.json` and `C:\Users\[USERNAME]\AppData\Roaming\interview-coder-v1\config.json`
+   - **macOS**: Delete `/Users/[USERNAME]/Library/Application Support/Electron/config.json` and `/Users/[USERNAME]/Library/Application Support/interview-coder-v1/config.json`
+   - **Linux**: Delete `~/.config/Electron/config.json` and `~/.config/interview-coder-v1/config.json`
+
 ## Free, Open-Source AI-Powered Interview Preparation Tool
 
 This project provides a powerful alternative to premium coding interview platforms. It delivers the core functionality of paid interview preparation tools but in a free, open-source package. Using your own OpenAI API key, you get access to advanced features like AI-powered problem analysis, solution generation, and debugging assistance - all running locally on your machine.
@@ -68,7 +100,8 @@ The application uses unidentifiable global keyboard shortcuts that won't be dete
 - Move Window: [Control or Cmd + Arrow keys]
 - Take Screenshot: [Control or Cmd + H]
 - Delete Last Screenshot: [Control or Cmd + L]
-- Process Screenshots: [Control or Cmd + Enter]
+- Process Coding Question: [Control or Cmd + Enter]
+- Process MCQ: [Control or Cmd + M + Enter]
 - Start New Problem: [Control or Cmd + R]
 - Quit: [Control or Cmd + Q]
 - Decrease Opacity: [Control or Cmd + []
@@ -230,7 +263,8 @@ The packaged applications will be available in the `release` directory.
    - If needed, remove the last screenshot with [Control or Cmd + L]
 
 3. **Processing**
-   - Press [Control or Cmd + Enter] to analyze the screenshots
+   - Press [Control or Cmd + Enter] to analyze screenshots as a coding question
+   - Press [Control or Cmd + M + Enter] to analyze screenshots as an MCQ (select one or multiple correct options)
    - AI extracts problem requirements from the screenshots using GPT-4 Vision API
    - The model generates an optimal solution based on the extracted information
    - All analysis is done using your personal OpenAI API key

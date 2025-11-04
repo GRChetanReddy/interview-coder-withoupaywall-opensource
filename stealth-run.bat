@@ -6,7 +6,8 @@ echo Use the keyboard shortcuts to control it:
 echo.
 echo - Toggle Visibility: Ctrl+B (or Cmd+B on Mac)
 echo - Take Screenshot: Ctrl+H
-echo - Process Screenshots: Ctrl+Enter
+echo - Process Coding Question: Ctrl+Enter
+echo - Process MCQ: Ctrl+M+Enter
 echo - Move Window: Ctrl+Arrows (Left/Right/Up/Down)
 echo - Adjust Opacity: Ctrl+[ (decrease) / Ctrl+] (increase)
 echo - Reset View: Ctrl+R
@@ -26,8 +27,11 @@ mkdir "%APPDATA%\interview-coder-v1\extra_screenshots" 2>nul
 
 echo === Step 2: Cleaning previous builds... ===
 echo Removing old build files to ensure a fresh start...
-rmdir /s /q dist dist-electron 2>nul
+rmdir /s /q dist dist-electron node_modules 2>nul
 del /q .env 2>nul
+
+echo === Step 2.5: Installing dependencies... ===
+call npm install
 
 echo === Step 3: Building application... ===
 echo This may take a moment...

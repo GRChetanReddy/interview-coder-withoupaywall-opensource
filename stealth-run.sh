@@ -6,7 +6,8 @@ echo "Use the keyboard shortcuts to control it:"
 echo
 echo "- Toggle Visibility: Cmd+B"
 echo "- Take Screenshot: Cmd+H"
-echo "- Process Screenshots: Cmd+Enter"
+echo "- Process Coding Question: Cmd+Enter"
+echo "- Process MCQ: Cmd+M+Enter"
 echo "- Move Window: Cmd+Arrows (Left/Right/Up/Down)"
 echo "- Adjust Opacity: Cmd+[ (decrease) / Cmd+] (increase)"
 echo "- Reset View: Cmd+R"
@@ -27,8 +28,11 @@ mkdir -p ~/Library/Application\ Support/interview-coder-v1/extra_screenshots
 
 echo "=== Step 2: Cleaning previous builds... ==="
 echo "Removing old build files to ensure a fresh start..."
-rm -rf dist dist-electron
+rm -rf dist dist-electron node_modules
 rm -f .env
+
+echo "=== Step 2.5: Installing fresh dependencies... ==="
+npm install
 
 echo "=== Step 3: Building application... ==="
 echo "This may take a moment..."

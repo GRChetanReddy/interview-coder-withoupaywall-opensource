@@ -20,6 +20,16 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   ipcMain.handle("check-api-key", () => {
     return configHelper.hasApiKey();
   })
+
+  ipcMain.handle("clear-all-config-files", () => {
+    try {
+      configHelper.clearAllConfigFiles();
+      return { success: true };
+    } catch (error) {
+      console.error("Error clearing config files:", error);
+      return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    }
+  })
   
   ipcMain.handle("validate-api-key", async (_event, apiKey) => {
     // First check the format

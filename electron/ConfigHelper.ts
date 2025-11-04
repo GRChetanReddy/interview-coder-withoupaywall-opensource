@@ -4,6 +4,7 @@ import path from "node:path"
 import { app } from "electron"
 import { EventEmitter } from "events"
 import { OpenAI } from "openai"
+import os from "node:os"
 
 interface Config {
   apiKey: string;
@@ -20,9 +21,9 @@ export class ConfigHelper extends EventEmitter {
   private defaultConfig: Config = {
     apiKey: "",
     apiProvider: "gemini", // Default to Gemini
-    extractionModel: "gemini-2.0-flash", // Default to Flash for faster responses
-    solutionModel: "gemini-2.0-flash",
-    debuggingModel: "gemini-2.0-flash",
+    extractionModel: "gemini-2.5-flash", // Default to Flash for faster responses
+    solutionModel: "gemini-2.5-flash",
+    debuggingModel: "gemini-2.5-flash",
     language: "python",
     opacity: 1.0
   };
@@ -38,7 +39,8 @@ export class ConfigHelper extends EventEmitter {
       this.configPath = path.join(process.cwd(), 'config.json');
     }
     
-    // Ensure the initial config file exists
+    // Clear old config files and ensure the initial config file exists
+    this.clearOldConfigFiles();
     this.ensureConfigExists();
   }
 
@@ -60,19 +62,19 @@ export class ConfigHelper extends EventEmitter {
    */
   private sanitizeModelSelection(model: string, provider: "openai" | "gemini" | "anthropic"): string {
     if (provider === "openai") {
-      // Only allow gpt-4o and gpt-4o-mini for OpenAI
-      const allowedModels = ['gpt-4o', 'gpt-4o-mini'];
+      // Only allow gpt-5 family for OpenAI
+      const allowedModels = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano'];
       if (!allowedModels.includes(model)) {
-        console.warn(`Invalid OpenAI model specified: ${model}. Using default model: gpt-4o`);
-        return 'gpt-4o';
+        console.warn(`Invalid OpenAI model specified: ${model}. Using default model: gpt-5`);
+        return 'gpt-5';
       }
       return model;
     } else if (provider === "gemini")  {
-      // Only allow gemini-1.5-pro and gemini-2.0-flash for Gemini
-      const allowedModels = ['gemini-1.5-pro', 'gemini-2.0-flash'];
+      // Only allow gemini-2.5-pro and gemini-2.5-flash for Gemini
+      const allowedModels = ['gemini-2.5-pro', 'gemini-2.5-flash'];
       if (!allowedModels.includes(model)) {
-        console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-2.0-flash`);
-        return 'gemini-2.0-flash'; // Changed default to flash
+        console.warn(`Invalid Gemini model specified: ${model}. Using default model: gemini-2.5-flash`);
+        return 'gemini-2.5-flash';
       }
       return model;
     }  else if (provider === "anthropic") {
@@ -171,17 +173,17 @@ export class ConfigHelper extends EventEmitter {
       // If provider is changing, reset models to the default for that provider
       if (updates.apiProvider && updates.apiProvider !== currentConfig.apiProvider) {
         if (updates.apiProvider === "openai") {
-          updates.extractionModel = "gpt-4o";
-          updates.solutionModel = "gpt-4o";
-          updates.debuggingModel = "gpt-4o";
+          updates.extractionModel = "gpt-5";
+          updates.solutionModel = "gpt-5";
+          updates.debuggingModel = "gpt-5";
         } else if (updates.apiProvider === "anthropic") {
           updates.extractionModel = "claude-3-7-sonnet-20250219";
           updates.solutionModel = "claude-3-7-sonnet-20250219";
           updates.debuggingModel = "claude-3-7-sonnet-20250219";
         } else {
-          updates.extractionModel = "gemini-2.0-flash";
-          updates.solutionModel = "gemini-2.0-flash";
-          updates.debuggingModel = "gemini-2.0-flash";
+          updates.extractionModel = "gemini-2.5-flash";
+          updates.solutionModel = "gemini-2.5-flash";
+          updates.debuggingModel = "gemini-2.5-flash";
         }
       }
       
@@ -244,7 +246,7 @@ export class ConfigHelper extends EventEmitter {
       return /^sk-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
     } else if (provider === "gemini") {
       // Basic format validation for Gemini API keys (usually alphanumeric with no specific prefix)
-      return apiKey.trim().length >= 10; // Assuming Gemini keys are at least 10 chars
+      return apiKey.trim().length >= 10; // Gemini keys are typically shorter than OpenAI keys
     } else if (provider === "anthropic") {
       // Basic format validation for Anthropic API keys
       return /^sk-ant-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
@@ -353,7 +355,7 @@ export class ConfigHelper extends EventEmitter {
     try {
       // For now, we'll just do a basic check to ensure the key exists and has valid format
       // In production, you would connect to the Gemini API and validate the key
-      if (apiKey && apiKey.trim().length >= 20) {
+      if (apiKey && apiKey.trim().length >= 10) {
         // Here you would actually validate the key with a Gemini API call
         return { valid: true };
       }
@@ -393,6 +395,196 @@ export class ConfigHelper extends EventEmitter {
       
       return { valid: false, error: errorMessage };
     }
+  }
+
+  /**
+   * Get the current code configuration (default config)
+   */
+  private getCurrentCodeConfig(): Config {
+    return { ...this.defaultConfig };
+  }
+
+  /**
+   * Check if stored config matches current code config
+   */
+  private isConfigValid(storedConfig: Config): boolean {
+    const currentConfig = this.getCurrentCodeConfig();
+    
+    // Check if the stored config has the same structure as current config
+    const requiredKeys = Object.keys(currentConfig) as (keyof Config)[];
+    const storedKeys = Object.keys(storedConfig) as (keyof Config)[];
+    
+    // Check if all required keys exist in stored config
+    for (const key of requiredKeys) {
+      if (!(key in storedConfig)) {
+        console.log(`Missing required config key: ${key}`);
+        return false;
+      }
+    }
+    
+    // Check for any extra keys that shouldn't be there
+    for (const key of storedKeys) {
+      if (!(key in currentConfig)) {
+        console.log(`Extra config key found: ${key}`);
+        return false;
+      }
+    }
+    
+    // Check if apiProvider is valid
+    if (!['openai', 'gemini', 'anthropic'].includes(storedConfig.apiProvider)) {
+      console.log(`Invalid apiProvider: ${storedConfig.apiProvider}`);
+      return false;
+    }
+    
+    // Check if models are valid for the selected provider
+    const provider = storedConfig.apiProvider;
+    const validModels = this.getValidModelsForProvider(provider);
+    
+    if (!validModels.includes(storedConfig.extractionModel)) {
+      console.log(`Invalid extractionModel: ${storedConfig.extractionModel} for provider: ${provider}`);
+      return false;
+    }
+    
+    if (!validModels.includes(storedConfig.solutionModel)) {
+      console.log(`Invalid solutionModel: ${storedConfig.solutionModel} for provider: ${provider}`);
+      return false;
+    }
+    
+    if (!validModels.includes(storedConfig.debuggingModel)) {
+      console.log(`Invalid debuggingModel: ${storedConfig.debuggingModel} for provider: ${provider}`);
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Get valid models for a specific provider
+   */
+  private getValidModelsForProvider(provider: "openai" | "gemini" | "anthropic"): string[] {
+    if (provider === "openai") {
+      return ['gpt-5', 'gpt-5-mini', 'gpt-5-nano'];
+    } else if (provider === "gemini") {
+      return ['gemini-2.5-pro', 'gemini-2.5-flash'];
+    } else if (provider === "anthropic") {
+      return ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
+    }
+    return [];
+  }
+
+  /**
+   * Get all possible config file paths across different OS and locations
+   */
+  private getPossibleConfigPaths(): string[] {
+    const paths: string[] = [];
+    const platform = os.platform();
+    
+    try {
+      // Current app's userData path
+      paths.push(path.join(app.getPath('userData'), 'config.json'));
+    } catch (err) {
+      console.warn('Could not get app userData path');
+    }
+    
+    // Add platform-specific paths
+    if (platform === 'win32') {
+      // Windows paths
+      const userProfile = process.env.USERPROFILE || process.env.HOMEPATH;
+      if (userProfile) {
+        paths.push(path.join(userProfile, 'AppData', 'Roaming', 'Electron', 'config.json'));
+        paths.push(path.join(userProfile, 'AppData', 'Roaming', 'interview-coder-v1', 'config.json'));
+      }
+    } else if (platform === 'darwin') {
+      // macOS paths
+      const homeDir = os.homedir();
+      paths.push(path.join(homeDir, 'Library', 'Application Support', 'Electron', 'config.json'));
+      paths.push(path.join(homeDir, 'Library', 'Application Support', 'interview-coder-v1', 'config.json'));
+    } else {
+      // Linux paths
+      const homeDir = os.homedir();
+      paths.push(path.join(homeDir, '.config', 'Electron', 'config.json'));
+      paths.push(path.join(homeDir, '.config', 'interview-coder-v1', 'config.json'));
+      paths.push(path.join(homeDir, '.config', 'interview-coder', 'config.json'));
+    }
+    
+    // Add current working directory path
+    paths.push(path.join(process.cwd(), 'config.json'));
+    
+    return paths;
+  }
+
+  /**
+   * Clear old config files that don't match current code configuration
+   */
+  private clearOldConfigFiles(): void {
+    console.log('Checking for old config files...');
+    
+    const possiblePaths = this.getPossibleConfigPaths();
+    let clearedCount = 0;
+    
+    for (const configPath of possiblePaths) {
+      try {
+        if (fs.existsSync(configPath)) {
+          console.log(`Found config file at: ${configPath}`);
+          
+          // Read and validate the config
+          const configData = fs.readFileSync(configPath, 'utf8');
+          const storedConfig = JSON.parse(configData);
+          
+          // Check if this config is valid
+          if (!this.isConfigValid(storedConfig)) {
+            console.log(`Invalid config found at: ${configPath}. Clearing...`);
+            fs.unlinkSync(configPath);
+            clearedCount++;
+            console.log(`Cleared invalid config file: ${configPath}`);
+          } else {
+            console.log(`Valid config found at: ${configPath}. Keeping...`);
+          }
+        }
+      } catch (error) {
+        console.warn(`Error processing config file at ${configPath}:`, error);
+        // If we can't read the file, it might be corrupted, so we'll try to remove it
+        try {
+          if (fs.existsSync(configPath)) {
+            fs.unlinkSync(configPath);
+            clearedCount++;
+            console.log(`Cleared corrupted config file: ${configPath}`);
+          }
+        } catch (unlinkError) {
+          console.warn(`Could not remove corrupted config file at ${configPath}:`, unlinkError);
+        }
+      }
+    }
+    
+    if (clearedCount > 0) {
+      console.log(`Cleared ${clearedCount} old/invalid config files`);
+    } else {
+      console.log('No old config files found to clear');
+    }
+  }
+
+  /**
+   * Force clear all config files (for debugging or manual reset)
+   */
+  public clearAllConfigFiles(): void {
+    console.log('Force clearing all config files...');
+    
+    const possiblePaths = this.getPossibleConfigPaths();
+    let clearedCount = 0;
+    
+    for (const configPath of possiblePaths) {
+      try {
+        if (fs.existsSync(configPath)) {
+          fs.unlinkSync(configPath);
+          clearedCount++;
+          console.log(`Cleared config file: ${configPath}`);
+        }
+      } catch (error) {
+        console.warn(`Error clearing config file at ${configPath}:`, error);
+      }
+    }
+    
+    console.log(`Force cleared ${clearedCount} config files`);
   }
 }
 

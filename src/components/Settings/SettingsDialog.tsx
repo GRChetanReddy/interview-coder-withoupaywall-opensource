@@ -38,25 +38,30 @@ const modelCategories: ModelCategory[] = [
     description: 'Model used to analyze screenshots and extract problem details',
     openaiModels: [
       {
-        id: "gpt-4o",
-        name: "gpt-4o",
+        id: "gpt-5",
+        name: "gpt-5",
         description: "Best overall performance for problem extraction"
       },
       {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
+        id: "gpt-5-mini",
+        name: "gpt-5-mini",
         description: "Faster, more cost-effective option"
+      },
+      {
+        id: "gpt-5-nano",
+        name: "gpt-5-nano",
+        description: "Lowest latency, lowest cost"
       }
     ],
     geminiModels: [
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "Best overall performance for problem extraction"
       },
       {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Faster, more cost-effective option"
       }
     ],
@@ -84,25 +89,30 @@ const modelCategories: ModelCategory[] = [
     description: 'Model used to generate coding solutions',
     openaiModels: [
       {
-        id: "gpt-4o",
-        name: "gpt-4o",
+        id: "gpt-5",
+        name: "gpt-5",
         description: "Strong overall performance for coding tasks"
       },
       {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
+        id: "gpt-5-mini",
+        name: "gpt-5-mini",
         description: "Faster, more cost-effective option"
+      },
+      {
+        id: "gpt-5-nano",
+        name: "gpt-5-nano",
+        description: "Lowest latency, lowest cost"
       }
     ],
     geminiModels: [
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "Strong overall performance for coding tasks"
       },
       {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Faster, more cost-effective option"
       }
     ],
@@ -130,25 +140,30 @@ const modelCategories: ModelCategory[] = [
     description: 'Model used to debug and improve solutions',
     openaiModels: [
       {
-        id: "gpt-4o",
-        name: "gpt-4o",
+        id: "gpt-5",
+        name: "gpt-5",
         description: "Best for analyzing code and error messages"
       },
       {
-        id: "gpt-4o-mini",
-        name: "gpt-4o-mini",
+        id: "gpt-5-mini",
+        name: "gpt-5-mini",
         description: "Faster, more cost-effective option"
+      },
+      {
+        id: "gpt-5-nano",
+        name: "gpt-5-nano",
+        description: "Lowest latency, lowest cost"
       }
     ],
     geminiModels: [
       {
-        id: "gemini-1.5-pro",
-        name: "Gemini 1.5 Pro",
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
         description: "Best for analyzing code and error messages"
       },
       {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
         description: "Faster, more cost-effective option"
       }
     ],
@@ -180,10 +195,10 @@ interface SettingsDialogProps {
 export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDialogProps) {
   const [open, setOpen] = useState(externalOpen || false);
   const [apiKey, setApiKey] = useState("");
-  const [apiProvider, setApiProvider] = useState<APIProvider>("openai");
-  const [extractionModel, setExtractionModel] = useState("gpt-4o");
-  const [solutionModel, setSolutionModel] = useState("gpt-4o");
-  const [debuggingModel, setDebuggingModel] = useState("gpt-4o");
+  const [apiProvider, setApiProvider] = useState<APIProvider>("gemini");
+  const [extractionModel, setExtractionModel] = useState("gemini-2.5-flash");
+  const [solutionModel, setSolutionModel] = useState("gemini-2.5-flash");
+  const [debuggingModel, setDebuggingModel] = useState("gemini-2.5-flash");
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useToast();
 
@@ -219,10 +234,10 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         .getConfig()
         .then((config: Config) => {
           setApiKey(config.apiKey || "");
-          setApiProvider(config.apiProvider || "openai");
-          setExtractionModel(config.extractionModel || "gpt-4o");
-          setSolutionModel(config.solutionModel || "gpt-4o");
-          setDebuggingModel(config.debuggingModel || "gpt-4o");
+          setApiProvider(config.apiProvider || "gemini");
+          setExtractionModel(config.extractionModel || "gemini-2.5-flash");
+          setSolutionModel(config.solutionModel || "gemini-2.5-flash");
+          setDebuggingModel(config.debuggingModel || "gemini-2.5-flash");
         })
         .catch((error: unknown) => {
           console.error("Failed to load config:", error);
@@ -240,13 +255,13 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
     
     // Reset models to defaults when changing provider
     if (provider === "openai") {
-      setExtractionModel("gpt-4o");
-      setSolutionModel("gpt-4o");
-      setDebuggingModel("gpt-4o");
+      setExtractionModel("gpt-5");
+      setSolutionModel("gpt-5");
+      setDebuggingModel("gpt-5");
     } else if (provider === "gemini") {
-      setExtractionModel("gemini-1.5-pro");
-      setSolutionModel("gemini-1.5-pro");
-      setDebuggingModel("gemini-1.5-pro");
+      setExtractionModel("gemini-2.5-flash");
+      setSolutionModel("gemini-2.5-flash");
+      setDebuggingModel("gemini-2.5-flash");
     } else if (provider === "anthropic") {
       setExtractionModel("claude-3-7-sonnet-20250219");
       setSolutionModel("claude-3-7-sonnet-20250219");
@@ -291,6 +306,32 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
   // Open external link handler
   const openExternalLink = (url: string) => {
     window.electronAPI.openLink(url);
+  };
+
+  // Handle clear config files
+  const handleClearConfigFiles = async () => {
+    setIsLoading(true);
+    try {
+      const result = await window.electronAPI.clearAllConfigFiles();
+      
+      if (result.success) {
+        showToast("Success", "Configuration files cleared successfully", "success");
+        // Reload the config after clearing
+        const config = await window.electronAPI.getConfig();
+        setApiKey(config.apiKey || "");
+        setApiProvider(config.apiProvider || "gemini");
+        setExtractionModel(config.extractionModel || "gemini-2.5-flash");
+        setSolutionModel(config.solutionModel || "gemini-2.5-flash");
+        setDebuggingModel(config.debuggingModel || "gemini-2.5-flash");
+      } else {
+        showToast("Error", result.error || "Failed to clear config files", "error");
+      }
+    } catch (error) {
+      console.error("Failed to clear config files:", error);
+      showToast("Error", "Failed to clear config files", "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -342,7 +383,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
                   />
                   <div className="flex flex-col">
                     <p className="font-medium text-white text-sm">OpenAI</p>
-                    <p className="text-xs text-white/60">GPT-4o models</p>
+                    <p className="text-xs text-white/60">GPT-5 models</p>
                   </div>
                 </div>
               </div>
@@ -562,6 +603,25 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
                 </div>
               );
             })}
+          </div>
+          
+          {/* Clear Config Files Section */}
+          <div className="space-y-4 mt-6 pt-4 border-t border-white/10">
+            <label className="text-sm font-medium text-white">Troubleshooting</label>
+            <p className="text-xs text-white/60 -mt-3 mb-2">
+              If you're experiencing API errors, try clearing old configuration files
+            </p>
+            <Button
+              variant="outline"
+              onClick={handleClearConfigFiles}
+              disabled={isLoading}
+              className="border-red-500/50 hover:bg-red-500/10 text-red-400 hover:text-red-300"
+            >
+              {isLoading ? "Clearing..." : "Clear All Config Files"}
+            </Button>
+            <p className="text-xs text-white/40">
+              This will remove all stored configuration files and reset to defaults
+            </p>
           </div>
         </div>
         <DialogFooter className="flex justify-between sm:justify-between">

@@ -217,6 +217,8 @@ const electronAPI = {
   checkApiKey: () => ipcRenderer.invoke("check-api-key"),
   validateApiKey: (apiKey: string) => 
     ipcRenderer.invoke("validate-api-key", apiKey),
+  clearAllConfigFiles: () => 
+    ipcRenderer.invoke("clear-all-config-files"),
   openExternal: (url: string) => 
     ipcRenderer.invoke("openExternal", url),
   onApiKeyInvalid: (callback: () => void) => {
