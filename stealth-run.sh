@@ -7,7 +7,7 @@ echo
 echo "- Toggle Visibility: Cmd+B"
 echo "- Take Screenshot: Cmd+H"
 echo "- Process Coding Question: Cmd+Enter"
-echo "- Process MCQ: Cmd+M+Enter"
+echo "- Process MCQ: Cmd+Y"
 echo "- Move Window: Cmd+Arrows (Left/Right/Up/Down)"
 echo "- Adjust Opacity: Cmd+[ (decrease) / Cmd+] (increase)"
 echo "- Reset View: Cmd+R"

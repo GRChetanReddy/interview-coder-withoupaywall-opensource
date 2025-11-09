@@ -56,12 +56,13 @@ export class ShortcutsHelper {
       await this.deps.processingHelper?.processScreenshots()
     })
 
-    // MCQ processing shortcut: Cmd/Ctrl + M + Enter
-    globalShortcut.register("CommandOrControl+M+Enter", async () => {
+    // MCQ processing shortcut: Cmd/Ctrl + Y
+    globalShortcut.register("CommandOrControl+Y", async () => {
       await this.deps.processingHelper?.processScreenshotsMcq?.()
     })
 
-    globalShortcut.register("CommandOrControl+R", () => {
+    // Register Cmd+R / Ctrl+R for reset - verify registration success
+    const rShortcutRegistered = globalShortcut.register("CommandOrControl+R", () => {
       console.log(
         "Command + R pressed. Canceling requests and resetting queues..."
       )
@@ -84,6 +85,12 @@ export class ShortcutsHelper {
         mainWindow.webContents.send("reset")
       }
     })
+    
+    if (!rShortcutRegistered) {
+      console.error("Failed to register CommandOrControl+R shortcut. This may cause issues.")
+    } else {
+      console.log("Successfully registered CommandOrControl+R shortcut for reset")
+    }
 
     // New shortcuts for moving the window
     globalShortcut.register("CommandOrControl+Left", () => {

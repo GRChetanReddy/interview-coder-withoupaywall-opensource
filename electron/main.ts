@@ -291,6 +291,20 @@ async function createWindow(): Promise<void> {
   if (isDev) {
     state.mainWindow.webContents.openDevTools()
   }
+  
+  // Prevent default reload behavior for Cmd+R / Ctrl+R
+  // This is CRITICAL to prevent the app from reloading/closing when Cmd+R is pressed
+  // Electron's default behavior is to reload the webContents, which can cause the app to appear closed
+  state.mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Intercept Cmd+R / Ctrl+R to prevent default reload behavior
+    if ((input.control || input.meta) && input.key.toLowerCase() === 'r') {
+      console.log('Cmd+R / Ctrl+R intercepted - preventing default reload behavior')
+      event.preventDefault()
+      // The global shortcut handler (registered in shortcuts.ts) will handle the reset functionality
+      // By preventing default here, we stop Electron from reloading the webContents
+    }
+  })
+  
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     console.log("Attempting to open URL:", url)
     try {

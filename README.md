@@ -101,7 +101,7 @@ The application uses unidentifiable global keyboard shortcuts that won't be dete
 - Take Screenshot: [Control or Cmd + H]
 - Delete Last Screenshot: [Control or Cmd + L]
 - Process Coding Question: [Control or Cmd + Enter]
-- Process MCQ: [Control or Cmd + M + Enter]
+- Process MCQ: [Control or Cmd + Y]
 - Start New Problem: [Control or Cmd + R]
 - Quit: [Control or Cmd + Q]
 - Decrease Opacity: [Control or Cmd + []
@@ -264,7 +264,7 @@ The packaged applications will be available in the `release` directory.
 
 3. **Processing**
    - Press [Control or Cmd + Enter] to analyze screenshots as a coding question
-   - Press [Control or Cmd + M + Enter] to analyze screenshots as an MCQ (select one or multiple correct options)
+   - Press [Control or Cmd + Y] to analyze screenshots as an MCQ (select one or multiple correct options)
    - AI extracts problem requirements from the screenshots using GPT-4 Vision API
    - The model generates an optimal solution based on the extracted information
    - All analysis is done using your personal OpenAI API key

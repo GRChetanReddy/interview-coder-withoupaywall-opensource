@@ -7,7 +7,7 @@ echo.
 echo - Toggle Visibility: Ctrl+B (or Cmd+B on Mac)
 echo - Take Screenshot: Ctrl+H
 echo - Process Coding Question: Ctrl+Enter
-echo - Process MCQ: Ctrl+M+Enter
+echo - Process MCQ: Ctrl+Y
 echo - Move Window: Ctrl+Arrows (Left/Right/Up/Down)
 echo - Adjust Opacity: Ctrl+[ (decrease) / Ctrl+] (increase)
 echo - Reset View: Ctrl+R
